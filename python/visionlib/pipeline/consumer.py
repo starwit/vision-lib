@@ -31,7 +31,7 @@ class RedisConsumer:
                         for key in self._stream_keys}
         )
         
-        if result is None:
+        if result is None or len(result) == 0:
             yield None, None
         
         for item in result:
