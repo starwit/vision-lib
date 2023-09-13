@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import List
+from typing import List, Tuple
 
 import pybase64
 import redis
@@ -21,7 +21,7 @@ class RedisConsumer:
         self._redis_client = redis.Redis(self._host, self._port)
         return self
 
-    def __call__(self) -> bytes:
+    def __call__(self) -> Tuple[str, bytes]:
         data_field_name = b'proto_data_b64' if self._b64_decode else b'proto_data'
         
         result = self._redis_client.xread(
@@ -32,7 +32,7 @@ class RedisConsumer:
         )
         
         if result is None:
-            yield None
+            yield None, None
         
         for item in result:
             proto_data = item[1][0][1][data_field_name]
@@ -41,17 +41,14 @@ class RedisConsumer:
             self._last_retrieved_ids[stream_key] = item[1][0][0].decode('utf-8')
 
             if self._b64_decode:
-                yield pybase64.b64decode(proto_data, validate=True)
+                yield stream_key, pybase64.b64decode(proto_data, validate=True)
             else:
-                yield proto_data
+                yield stream_key, proto_data
         
-    def __exit__(self, _, exc_value, __):
-        if exc_value is not None:
-            logger.error('Redis read yielded exception', exc_info=exc_value)
-
+    def __exit__(self, _, __, ___):
         try:
             self._redis_client.close()
         except Exception as e:
             logger.warn('Error while closing redis client', exc_info=e)
         
-        return True
+        return False

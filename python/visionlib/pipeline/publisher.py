@@ -31,13 +31,10 @@ class RedisPublisher:
             maxlen=self._stream_maxlen
         )
     
-    def __exit__(self, _, exc_value, __):
-        if exc_value is not None:
-            logger.error('Redis read yielded exception', exc_info=exc_value)
-
+    def __exit__(self, _, __, ___):
         try:
             self._redis_client.close()
         except Exception as e:
             logger.warn('Error while closing redis client', exc_info=e)
         
-        return True
+        return False
