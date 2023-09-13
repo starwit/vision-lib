@@ -55,5 +55,5 @@ class RedisConsumer:
         
         return False
     
-    def _extract_stream_id(stream_key: str) -> str:
+    def _extract_stream_id(self, stream_key: str) -> str:
         return stream_key.split(':')[-1]
