@@ -23,27 +23,29 @@ class RedisConsumer:
 
     def __call__(self) -> Tuple[str, bytes]:
         data_field_name = b'proto_data_b64' if self._b64_decode else b'proto_data'
-        
-        result = self._redis_client.xread(
-            count=1,
-            block=2000,
-            streams={key: self._last_retrieved_ids[key] 
-                        for key in self._stream_keys}
-        )
-        
-        if result is None or len(result) == 0:
-            yield None, None
-        
-        for item in result:
-            proto_data = item[1][0][1][data_field_name]
-            stream_key = item[0].decode('utf-8')
 
-            self._last_retrieved_ids[stream_key] = item[1][0][0].decode('utf-8')
+        while True:    
+            result = self._redis_client.xread(
+                count=1,
+                block=2000,
+                streams={key: self._last_retrieved_ids[key] 
+                            for key in self._stream_keys}
+            )
+            
+            if result is None or len(result) == 0:
+                yield None, None
+                continue
+            
+            for item in result:
+                proto_data = item[1][0][1][data_field_name]
+                stream_key = item[0].decode('utf-8')
 
-            if self._b64_decode:
-                yield self._extract_stream_id(stream_key), pybase64.b64decode(proto_data, validate=True)
-            else:
-                yield self._extract_stream_id(stream_key), proto_data
+                self._last_retrieved_ids[stream_key] = item[1][0][0].decode('utf-8')
+
+                if self._b64_decode:
+                    yield self._extract_stream_id(stream_key), pybase64.b64decode(proto_data, validate=True)
+                else:
+                    yield self._extract_stream_id(stream_key), proto_data
         
     def __exit__(self, _, __, ___):
         try:
