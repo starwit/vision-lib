@@ -41,9 +41,9 @@ class RedisConsumer:
             self._last_retrieved_ids[stream_key] = item[1][0][0].decode('utf-8')
 
             if self._b64_decode:
-                yield stream_key, pybase64.b64decode(proto_data, validate=True)
+                yield self._extract_stream_id(stream_key), pybase64.b64decode(proto_data, validate=True)
             else:
-                yield stream_key, proto_data
+                yield self._extract_stream_id(stream_key), proto_data
         
     def __exit__(self, _, __, ___):
         try:
@@ -52,3 +52,6 @@ class RedisConsumer:
             logger.warn('Error while closing redis client', exc_info=e)
         
         return False
+    
+    def _extract_stream_id(stream_key: str) -> str:
+        return stream_key.split(':')[-1]
