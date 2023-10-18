@@ -1,3 +1,4 @@
+import numpy as np
 from turbojpeg import TurboJPEG
 from visionapi.messages_pb2 import VideoFrame
 
@@ -9,4 +10,6 @@ def get_raw_frame_data(proto: VideoFrame):
     if jpeg_field_set:
         return jpeg.decode(proto.frame_data_jpeg)
     else:
-        return proto.frame_data
+        image_dims = (proto.shape.height, proto.shape.width, proto.shape.channels)
+        np_image = np.frombuffer(get_raw_frame_data(proto.frame_data), dtype=np.uint8).reshape(image_dims)
+        return np_image
