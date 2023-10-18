@@ -11,5 +11,5 @@ def get_raw_frame_data(proto: VideoFrame):
         return jpeg.decode(proto.frame_data_jpeg)
     else:
         image_dims = (proto.shape.height, proto.shape.width, proto.shape.channels)
-        np_image = np.frombuffer(get_raw_frame_data(proto.frame_data), dtype=np.uint8).reshape(image_dims)
+        np_image = np.frombuffer(proto.frame_data, dtype=np.uint8).reshape(image_dims)
         return np_image
