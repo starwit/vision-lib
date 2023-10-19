@@ -8,12 +8,13 @@ import redis
 logger = logging.getLogger(__name__)
 
 class RedisConsumer:
-    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True) -> None:
+    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True, block=2000) -> None:
         self._redis_client = None
         self._host = host
         self._port = port
         self._stream_keys = stream_keys
         self._b64_decode = b64_decode
+        self._block = block
 
         self._last_retrieved_ids = defaultdict(lambda: '$')
 
@@ -27,7 +28,7 @@ class RedisConsumer:
         while True:    
             result = self._redis_client.xread(
                 count=1,
-                block=2000,
+                block=self._block,
                 streams={key: self._last_retrieved_ids[key] 
                             for key in self._stream_keys}
             )
