@@ -503,5 +503,5 @@ subdirectory = "python/visionapi"
 
 [metadata]
 lock-version = "2.0"
-python-versions = "~3.10"
-content-hash = "72ac1c5ba8a8f5516118cf277c56ccedf571bd4b7b63b907e4d05c32634fb42f"
+python-versions = ">=3.10,<3.13"
+content-hash = "4b44539ca85d445c25f0541da28a48f4d0d01c40dc92099f25d223799383aeac"
