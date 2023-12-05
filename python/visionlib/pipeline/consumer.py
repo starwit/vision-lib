@@ -44,9 +44,9 @@ class RedisConsumer:
                 self._last_retrieved_ids[stream_key] = item[1][0][0].decode('utf-8')
 
                 if self._b64_decode:
-                    yield self._extract_stream_id(stream_key), pybase64.b64decode(proto_data, validate=True)
+                    yield stream_key, pybase64.b64decode(proto_data, validate=True)
                 else:
-                    yield self._extract_stream_id(stream_key), proto_data
+                    yield stream_key, proto_data
         
     def __exit__(self, _, __, ___):
         try:
@@ -56,5 +56,3 @@ class RedisConsumer:
         
         return False
     
-    def _extract_stream_id(self, stream_key: str) -> str:
-        return stream_key.split(':')[-1]
