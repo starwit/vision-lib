@@ -16,7 +16,7 @@ class RedisConsumer:
         self._b64_decode = b64_decode
         self._block = block
 
-        self._last_retrieved_ids = defaultdict(lambda: '$')
+        self._last_retrieved_ids = defaultdict(lambda: '0')
 
     def __enter__(self):
         self._redis_client = redis.Redis(self._host, self._port)
