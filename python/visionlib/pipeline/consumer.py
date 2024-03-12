@@ -12,11 +12,10 @@ class RedisConsumer:
         self._redis_client = None
         self._host = host
         self._port = port
-        self._stream_keys = stream_keys
         self._b64_decode = b64_decode
         self._block = block
 
-        self._last_retrieved_ids = defaultdict(lambda: '0')
+        self._stream_pointers = {key: '$' for key in stream_keys}
 
     def __enter__(self):
         self._redis_client = redis.Redis(self._host, self._port)
@@ -29,8 +28,7 @@ class RedisConsumer:
             result = self._redis_client.xread(
                 count=1,
                 block=self._block,
-                streams={key: self._last_retrieved_ids[key] 
-                            for key in self._stream_keys}
+                streams=self._stream_pointers
             )
             
             if result is None or len(result) == 0:
@@ -41,12 +39,21 @@ class RedisConsumer:
                 proto_data = item[1][0][1][data_field_name]
                 stream_key = item[0].decode('utf-8')
 
-                self._last_retrieved_ids[stream_key] = item[1][0][0].decode('utf-8')
+                self._update_stream_pointers(stream_key, retrieved_id=item[1][0][0].decode('utf-8'))
 
                 if self._b64_decode:
                     yield stream_key, pybase64.b64decode(proto_data, validate=True)
                 else:
                     yield stream_key, proto_data
+
+    def _update_stream_pointers(self, stream_key, retrieved_id):
+        self._stream_pointers[stream_key] = retrieved_id
+
+        # should only happen on the first ever received message: move all stream pointers away from '$'
+        if '$' in self._stream_pointers.values():
+            for key in self._stream_pointers:
+                if self._stream_pointers[key] == '$':
+                    self._stream_pointers[key] = retrieved_id
         
     def __exit__(self, _, __, ___):
         try:
@@ -55,4 +62,3 @@ class RedisConsumer:
             logger.warn('Error while closing redis client', exc_info=e)
         
         return False
-    
