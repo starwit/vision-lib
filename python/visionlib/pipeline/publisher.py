@@ -10,7 +10,7 @@ class RedisPublisher:
         self._redis_client = None
         self._host = host
         self._port = port
-        self._stream_maxlen = 10
+        self._stream_maxlen = stream_maxlen
         self._b64_encode = b64_encode
 
     def __enter__(self):
