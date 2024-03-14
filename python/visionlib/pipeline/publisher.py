@@ -6,15 +6,16 @@ import redis
 logger = logging.getLogger(__name__)
 
 class RedisPublisher:
-    def __init__(self, host: str, port: int, stream_maxlen=10, b64_encode=True) -> None:
+    def __init__(self, host: str, port: int, stream_maxlen=10, b64_encode=True, **redis_args) -> None:
         self._redis_client = None
+        self._redis_args = redis_args
         self._host = host
         self._port = port
         self._stream_maxlen = stream_maxlen
         self._b64_encode = b64_encode
 
     def __enter__(self):
-        self._redis_client = redis.Redis(self._host, self._port)
+        self._redis_client = redis.Redis(self._host, self._port, **self._redis_args)
         return self
 
     def __call__(self, stream_key: str, proto_data: bytes):
