@@ -30,7 +30,7 @@ jobs:
             [{
               "id": "visionapi",
               "username": "flonix8", 
-              "password": "${{ secrets.VISION_API_READ_TOKEN }}", 
+              "password": "${{ secrets.VISION_API_READ_TOKEN }}"
             }]
 
       - name: Build with Maven
