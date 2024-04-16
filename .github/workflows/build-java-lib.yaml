@@ -21,13 +21,18 @@ jobs:
         with:
           repositories: |
             [{
-              "id":"visionapi",
-              "name":"vision-api",
+              "id": "visionapi",
+              "name": "vision-api",
+              "url": "https://maven.pkg.github.com/starwit/vision-api",
+              "snapshots": {"enabled": true}
+            }]
+          servers: |
+            [{
+              "id": "visionapi",
               "username": "flonix8", 
               "password": "${{ secrets.VISION_API_READ_TOKEN }}", 
-              "url":"https://maven.pkg.github.com/starwit/vision-api",
-              "snapshots":{"enabled":true}
             }]
+
       - name: Build with Maven
         working-directory: java
         run: mvn --batch-mode deploy
