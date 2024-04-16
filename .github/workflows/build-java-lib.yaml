@@ -17,6 +17,17 @@ jobs:
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.6
+      - uses: s4u/maven-settings-action@v3.0.0
+        with:
+          repositories: |
+            [{
+              "id":"visionapi",
+              "name":"vision-api",
+              "username": "flonix8", 
+              "password": "${{ secrets.VISION_API_READ_TOKEN }}", 
+              "url":"url",
+              "snapshots":{"enabled":true}
+            }]
       - name: Build with Maven
         working-directory: java
         run: mvn --batch-mode deploy
