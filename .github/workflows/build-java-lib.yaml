@@ -25,7 +25,7 @@ jobs:
               "name":"vision-api",
               "username": "flonix8", 
               "password": "${{ secrets.VISION_API_READ_TOKEN }}", 
-              "url":"url",
+              "url":"https://maven.pkg.github.com/starwit/vision-api",
               "snapshots":{"enabled":true}
             }]
       - name: Build with Maven
