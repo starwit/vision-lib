@@ -32,13 +32,11 @@
       <artifactId>protobuf-java</artifactId>
       <version>3.25.3</version>
     </dependency>
-    
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
       <version>3.25.3</version>
     </dependency>
-
     <dependency>
       <groupId>de.starwit</groupId>
       <artifactId>vision-api</artifactId>
@@ -59,10 +57,29 @@
       <artifactId>slf4j-simple</artifactId>
       <version>2.0.12</version>
     </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <version>5.9.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>1.19.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.redis</groupId>
+      <artifactId>testcontainers-redis</artifactId>
+      <version>2.2.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.25.1</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

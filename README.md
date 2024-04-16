@@ -1,2 +1,2 @@
 # vision-lib
-This package provides some helpers and common components for working with the vision-api (e.g. for building a pipeline stage). See umbrella repo here: https://github.com/starwit/vision-pipeline-k8s
+This package provides some helpers and common components for working with the vision-api (e.g. for building a pipeline stage). See umbrella repo here: https://github.com/starwit/starwit-awareness-engine
