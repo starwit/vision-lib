@@ -1,4 +1,5 @@
 import logging
+from typing import List, Tuple
 
 import pybase64
 import redis
@@ -19,6 +20,9 @@ class RedisPublisher:
         return self
 
     def __call__(self, stream_key: str, proto_data: bytes):
+        self._add_to_stream(stream_key, proto_data)
+
+    def _add_to_stream(self, stream_key: str, proto_data: bytes):
         data_field_name = 'proto_data'
         data_field_value = proto_data
 
@@ -39,3 +43,19 @@ class RedisPublisher:
             logger.warn('Error while closing redis client', exc_info=e)
         
         return False
+    
+class RedisPipelinePublisher(RedisPublisher):
+    '''A version of the redis publisher that uses pipelining to make the sending process more efficient.'''
+    def __init__(self, host: str, port: int, stream_maxlen=10, b64_encode=True, **redis_args) -> None:
+        super().__init__(host, port, stream_maxlen, b64_encode, **redis_args)
+
+    def __enter__(self):
+        # This works because Pipeline is a subclass of Redis
+        self._redis_client = redis.Redis(self._host, self._port, **self._redis_args).pipeline(transaction=False)
+        return self
+    
+    def __call__(self, stream_entries: List[Tuple[str, bytes]]):
+        for stream_key, proto_data in stream_entries:
+            self._add_to_stream(stream_key, proto_data)
+
+        self._redis_client.execute()
