@@ -1,3 +1,4 @@
+import re
 from typing import Generator, List, TextIO
 
 from pydantic import BaseModel
@@ -11,10 +12,11 @@ def message_splitter(file: TextIO) -> Generator[str, None, None]:
         if len(chunk) == 0:
             break
         buffer += chunk
-        sep_idx = buffer.find(MESSAGE_SEPARATOR)
-        if sep_idx != -1:
-            yield buffer[:sep_idx]
-            buffer = buffer[sep_idx+1:]
+        prev_end = 0
+        for match in re.finditer(rf'{MESSAGE_SEPARATOR}', buffer):
+            yield buffer[prev_end:match.start()]
+            prev_end = match.end()
+        buffer = buffer[prev_end:]
 
 
 class EventMeta(BaseModel):
