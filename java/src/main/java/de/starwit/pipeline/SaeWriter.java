@@ -7,7 +7,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.starwit.visionapi.Messages.SaeMessage;
+import de.starwit.visionapi.Sae.SaeMessage;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.params.XAddParams;

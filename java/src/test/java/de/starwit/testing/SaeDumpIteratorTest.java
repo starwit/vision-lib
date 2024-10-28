@@ -7,7 +7,7 @@ import java.util.List;
 import org.junit.Test;
 import static org.assertj.core.api.Assertions.*;
 
-import de.starwit.visionapi.Messages.SaeMessage;
+import de.starwit.visionapi.Sae.SaeMessage;
 
 public class SaeDumpIteratorTest {
     

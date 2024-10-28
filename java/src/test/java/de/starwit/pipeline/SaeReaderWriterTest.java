@@ -11,8 +11,8 @@ import com.google.protobuf.ByteString;
 import com.redis.testcontainers.RedisContainer;
 import static org.assertj.core.api.Assertions.*;
 
-import de.starwit.visionapi.Messages.Detection;
-import de.starwit.visionapi.Messages.SaeMessage;
+import de.starwit.visionapi.Sae.Detection;
+import de.starwit.visionapi.Sae.SaeMessage;
 import redis.clients.jedis.StreamEntryID;
 
 @Testcontainers

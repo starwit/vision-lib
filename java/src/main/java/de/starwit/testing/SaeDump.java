@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import de.starwit.visionapi.Messages.SaeMessage;
+import de.starwit.visionapi.Sae.SaeMessage;
 
 public class SaeDump implements Iterable<SaeMessage>, Closeable {
 

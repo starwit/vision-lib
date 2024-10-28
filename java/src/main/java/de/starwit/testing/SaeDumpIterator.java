@@ -14,7 +14,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import de.starwit.testing.messages.SaeDumpEvent;
 import de.starwit.testing.messages.SaeDumpMeta;
-import de.starwit.visionapi.Messages.SaeMessage;
+import de.starwit.visionapi.Sae.SaeMessage;
 
 /**
  * Reads an .saedump file and produces SaeMessage objects.
