@@ -7,7 +7,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.starwit.visionapi.Sae.SaeMessage;
+import com.google.protobuf.GeneratedMessage;
+
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.params.XAddParams;
@@ -33,7 +34,7 @@ public class SaeWriter implements Closeable {
      * @param maxLen Limit the stream length to {@code maxLen} messages (old messages are discarded accordingly)
      * @throws RedisConnectionNotAvailableException 
      */
-    public void write(String streamKey, SaeMessage message, int maxLen) throws RedisConnectionNotAvailableException {
+    public void write(String streamKey, GeneratedMessage message, int maxLen) throws RedisConnectionNotAvailableException {
         XAddParams xAddParams = new XAddParams().maxLen(maxLen);
         try {
             byte[] messagePayload = Base64.getEncoder().encode(message.toByteArray());
