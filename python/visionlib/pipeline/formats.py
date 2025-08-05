@@ -6,7 +6,6 @@ def is_sae_message(msg: 'SaeMessage') -> bool:
         msg.frame.source_id != '',
         msg.frame.timestamp_utc_ms != 0,
         msg.frame.HasField('shape'),
-        msg.HasField('metrics')
     ))
 
 def is_position_message(msg: 'PositionMessage') -> bool:
