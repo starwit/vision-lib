@@ -6,8 +6,8 @@
 version: 2
 updates:
 
-  - package-ecosystem: "docker"
-    directory: "/"
+  - package-ecosystem: "java"
+    directory: "/java"
     target-branch: main
     schedule:
       interval: "weekly"
@@ -17,7 +17,7 @@ updates:
           - "*"
 
   - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/" # Location of package manifests
+    directory: "/python" # Location of package manifests
     schedule:
       interval: "weekly"
     groups:
