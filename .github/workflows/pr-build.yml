@@ -37,8 +37,9 @@ jobs:
     - run: mvn --version
 
     - name: Build with Maven
-      run: cd java \
-           mvn clean -B package --settings .github/workflows/settings.xml --file pom.xml
+      run: |
+          cd java 
+          mvn clean -B package --settings .github/workflows/settings.xml --file pom.xml
       env:
          CI: false
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
