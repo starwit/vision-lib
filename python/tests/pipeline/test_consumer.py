@@ -19,7 +19,7 @@ def test_redis_consumer(redis_container, redis_client):
                              stream_keys=['test_stream'],
                              b64_decode=False, 
                              block=500,
-                             read_existing_entries=False)
+                             start_at_head=False)
     consumer.__enter__()
     consume = consumer()
 
@@ -40,7 +40,7 @@ def test_redis_consumer_existing(redis_container, redis_client):
                              stream_keys=['test_stream'],
                              b64_decode=False, 
                              block=500,
-                             read_existing_entries=True)
+                             start_at_head=True)
     consumer.__enter__()
     consume = consumer()
 

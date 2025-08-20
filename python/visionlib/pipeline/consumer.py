@@ -7,15 +7,15 @@ import redis
 logger = logging.getLogger(__name__)
 
 class RedisConsumer:
-    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True, block=2000, read_existing_entries: bool = False) -> None:
+    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True, block=2000, start_at_head: bool = False) -> None:
         self._redis_client = None
         self._host = host
         self._port = port
         self._b64_decode = b64_decode
         self._block = block
-        self._read_existing_entries = read_existing_entries
+        self._start_at_head = start_at_head
 
-        init_stream_pointer = '$' if not read_existing_entries else '0'
+        init_stream_pointer = '$' if not start_at_head else '0'
         self._stream_pointers = {key: init_stream_pointer for key in stream_keys}
 
     def __enter__(self):
