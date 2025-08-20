@@ -19,8 +19,7 @@ numpy = "^1.24.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"
-testcontainers = "^4.4.1"
-testcontainers-redis = "^0.0.1rc1"
+testcontainers = {extras = ["redis"], version = "^4.12.0"}
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,6 +1,5 @@
 import logging
-from collections import defaultdict
-from typing import List, Tuple
+from typing import Generator, List, Tuple
 
 import pybase64
 import redis
@@ -8,20 +7,22 @@ import redis
 logger = logging.getLogger(__name__)
 
 class RedisConsumer:
-    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True, block=2000) -> None:
+    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True, block=2000, read_existing_entries: bool = False) -> None:
         self._redis_client = None
         self._host = host
         self._port = port
         self._b64_decode = b64_decode
         self._block = block
+        self._read_existing_entries = read_existing_entries
 
-        self._stream_pointers = {key: '$' for key in stream_keys}
+        init_stream_pointer = '$' if not read_existing_entries else '0'
+        self._stream_pointers = {key: init_stream_pointer for key in stream_keys}
 
     def __enter__(self):
         self._redis_client = redis.Redis(self._host, self._port)
         return self
 
-    def __call__(self) -> Tuple[str, bytes]:
+    def __call__(self) -> Generator[Tuple[str, bytes], None, None]:
         data_field_name = b'proto_data_b64' if self._b64_decode else b'proto_data'
 
         while True:    
