@@ -22,17 +22,17 @@ public class SaeReaderWriterTest {
     static RedisContainer redisContainer = new RedisContainer("redis:7.0");
     
     @Test
-    public void test() throws InterruptedException, RedisConnectionNotAvailableException {
+    public void test() throws InterruptedException, ValkeyConnectionNotAvailableException {
         SaeMessage testMessage = makeMessage("msg1");
         
         try (
-            SaeWriter writer = new SaeWriter(redisContainer.getRedisHost(), redisContainer.getRedisPort());
+            ValkeyWriter writer = new ValkeyWriter(redisContainer.getRedisHost(), redisContainer.getRedisPort());
         ) {
             writer.write("testStream1", testMessage, 10);
         }
 
         try (
-            SaeReader reader = new SaeReader(Arrays.asList("testStream1"), redisContainer.getRedisHost(), redisContainer.getRedisPort(), new StreamEntryID(0));
+            ValkeyReader reader = new ValkeyReader(Arrays.asList("testStream1"), redisContainer.getRedisHost(), redisContainer.getRedisPort(), new StreamEntryID(0));
         ) {
             List<SaeMessage> msg = reader.read(1, 100);
             assertThat(msg.size()).isEqualTo(1);

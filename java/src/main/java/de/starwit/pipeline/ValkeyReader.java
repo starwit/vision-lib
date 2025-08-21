@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import de.starwit.visionapi.Sae.SaeMessage;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.StreamEntryID;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -20,12 +19,12 @@ import redis.clients.jedis.params.XReadParams;
 import redis.clients.jedis.resps.StreamEntry;
 
 /**
- * Reads {@code SaeMessage} protobufs from a Redis stream.
+ * Reads vision-api protobuf payloads from a Valkey stream.
  * Allocates a network connection to Jedis and must therefore be (auto)closed.
  */
-public class SaeReader implements Closeable {
+public class ValkeyReader implements Closeable {
 
-    private static final Logger log = LoggerFactory.getLogger(SaeReader.class);
+    private static final Logger log = LoggerFactory.getLogger(ValkeyReader.class);
 
     private Map<String,StreamEntryID> streamPointerById;
     private JedisPooled redisClient;
@@ -36,7 +35,7 @@ public class SaeReader implements Closeable {
      * @param host Redis host.
      * @param port Redis port.
      */
-    public SaeReader(List<String> streamIds, String host, int port) {
+    public ValkeyReader(List<String> streamIds, String host, int port) {
         this(streamIds, host, port, StreamEntryID.LAST_ENTRY);
     }
     
@@ -47,34 +46,34 @@ public class SaeReader implements Closeable {
      * @param port Redis port.
      * @param startAfter Start reading the stream after this id (i.e. return messages with a higher id).
      */
-    public SaeReader(List<String> streamIds, String host, int port, StreamEntryID startAfter) {
+    public ValkeyReader(List<String> streamIds, String host, int port, StreamEntryID startAfter) {
         this.redisClient = new JedisPooled(host, port);
         this.streamPointerById = streamIds.stream()
                 .collect(Collectors.toMap(id -> id, id -> startAfter));
     }
 
     /**
-     * Read a number of messages from all configured streams.
+     * Read a number of raw vision-api messages from all configured streams.
      * @param maxCountPerStream How many messages should be retrieved per stream.
      * @param timeout How long to wait before returning an empty result, if no new messages have arrived.
-     * @return A list of {@code SaeMessage}. Empty, if any kind of problem was encountered.
-     * @throws RedisConnectionNotAvailableException 
+     * @return A list of byte arrays containing the serialized protobufs. Empty, if any kind of problem was encountered.
+     * @throws ValkeyConnectionNotAvailableException 
      */
-    public List<SaeMessage> read(int maxCountPerStream, int timeout) throws RedisConnectionNotAvailableException {
+    public List<byte[]> read(int maxCountPerStream, int timeout) throws ValkeyConnectionNotAvailableException {
         XReadParams xReadParams = new XReadParams().count(maxCountPerStream).block(timeout);
         List<Map.Entry<String, List<StreamEntry>>> result = null;
         try {
-            result = this.redisClient.xread(xReadParams, this.streamPointerById);
+            result = this.redisClient.xread(xReadParams, this.streamPointerById);g
         } catch (JedisConnectionException ex) {
             log.warn("Could not read from redis", ex);
-            throw new RedisConnectionNotAvailableException(ex);
+            throw new ValkeyConnectionNotAvailableException(ex);
         }
 
         if (result == null) {
             return new ArrayList<>();
         }
 
-        List<SaeMessage> parsedResults = new ArrayList<>();
+        List<byte[]> payloads = new ArrayList<>();
 
         for (Map.Entry<String,List<StreamEntry>> resultEntry : result) {
             String streamId = resultEntry.getKey();
@@ -83,16 +82,13 @@ public class SaeReader implements Closeable {
                 // Set last retrieved id
                 updateStreamPointers(streamId, message);
                 String proto_b64 = message.getFields().get("proto_data_b64");
-                try {
-                    SaeMessage msg = SaeMessage.parseFrom(Base64.getDecoder().decode(proto_b64));
-                    parsedResults.add(msg);
-                } catch (InvalidProtocolBufferException ex) {
-                    log.error("Error decoding proto from message. streamId=" + streamId, ex);
+                if (proto_b64.length() > 0) {
+                    payloads.add(Base64.getDecoder().decode(proto_b64));
                 }
             }
         }
 
-        return parsedResults;
+        return payloads;
     }
 
     private void updateStreamPointers(String streamId, StreamEntry msg) {
