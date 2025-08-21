@@ -10,24 +10,22 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-
-import redis.clients.jedis.JedisPooled;
-import redis.clients.jedis.StreamEntryID;
-import redis.clients.jedis.exceptions.JedisConnectionException;
-import redis.clients.jedis.params.XReadParams;
-import redis.clients.jedis.resps.StreamEntry;
+import io.valkey.JedisPooled;
+import io.valkey.StreamEntryID;
+import io.valkey.exceptions.JedisConnectionException;
+import io.valkey.params.XReadParams;
+import io.valkey.resps.StreamEntry;
 
 /**
  * Reads vision-api protobuf payloads from a Valkey stream.
- * Allocates a network connection to Jedis and must therefore be (auto)closed.
+ * Allocates a network connection through Jedis and must therefore be (auto)closed.
  */
-public class ValkeyReader implements Closeable {
+public class VisionApiReader implements Closeable {
 
-    private static final Logger log = LoggerFactory.getLogger(ValkeyReader.class);
+    private static final Logger log = LoggerFactory.getLogger(VisionApiReader.class);
 
     private Map<String,StreamEntryID> streamPointerById;
-    private JedisPooled redisClient;
+    private JedisPooled valkeyClient;
 
     /**
      * Create a new instance, attaching at the end of all given streams (i.e. reading only messages appended after reader init).
@@ -35,8 +33,8 @@ public class ValkeyReader implements Closeable {
      * @param host Redis host.
      * @param port Redis port.
      */
-    public ValkeyReader(List<String> streamIds, String host, int port) {
-        this(streamIds, host, port, StreamEntryID.LAST_ENTRY);
+    public VisionApiReader(List<String> streamIds, String host, int port) {
+        this(streamIds, host, port, StreamEntryID.XREAD_NEW_ENTRY);
     }
     
     /**
@@ -46,8 +44,8 @@ public class ValkeyReader implements Closeable {
      * @param port Redis port.
      * @param startAfter Start reading the stream after this id (i.e. return messages with a higher id).
      */
-    public ValkeyReader(List<String> streamIds, String host, int port, StreamEntryID startAfter) {
-        this.redisClient = new JedisPooled(host, port);
+    public VisionApiReader(List<String> streamIds, String host, int port, StreamEntryID startAfter) {
+        this.valkeyClient = new JedisPooled(host, port);
         this.streamPointerById = streamIds.stream()
                 .collect(Collectors.toMap(id -> id, id -> startAfter));
     }
@@ -57,16 +55,16 @@ public class ValkeyReader implements Closeable {
      * @param maxCountPerStream How many messages should be retrieved per stream.
      * @param timeout How long to wait before returning an empty result, if no new messages have arrived.
      * @return A list of byte arrays containing the serialized protobufs. Empty, if any kind of problem was encountered.
-     * @throws ValkeyConnectionNotAvailableException 
+     * @throws VisionApiConnectionNotAvailableException 
      */
-    public List<byte[]> read(int maxCountPerStream, int timeout) throws ValkeyConnectionNotAvailableException {
+    public List<byte[]> read(int maxCountPerStream, int timeout) throws VisionApiConnectionNotAvailableException {
         XReadParams xReadParams = new XReadParams().count(maxCountPerStream).block(timeout);
         List<Map.Entry<String, List<StreamEntry>>> result = null;
         try {
-            result = this.redisClient.xread(xReadParams, this.streamPointerById);g
+            result = this.valkeyClient.xread(xReadParams, this.streamPointerById);
         } catch (JedisConnectionException ex) {
             log.warn("Could not read from redis", ex);
-            throw new ValkeyConnectionNotAvailableException(ex);
+            throw new VisionApiConnectionNotAvailableException(ex);
         }
 
         if (result == null) {
@@ -97,7 +95,7 @@ public class ValkeyReader implements Closeable {
         // Set any remaining '$' stream pointers (i.e. LAST_ENTRY) to a concrete timestamp
         // If we do not do this, some streams are not picked up when listening to multiple streams
         List<String> lastEntryStreamIds = this.streamPointerById.entrySet().stream()
-                .filter(e -> e.getValue().equals(StreamEntryID.LAST_ENTRY))
+                .filter(e -> e.getValue().equals(StreamEntryID.XREAD_NEW_ENTRY))
                 .map(Map.Entry::getKey)
                 .toList();
             
@@ -108,7 +106,7 @@ public class ValkeyReader implements Closeable {
     @Override
     public void close() {
         try {
-            this.redisClient.close();
+            this.valkeyClient.close();
         } catch (Exception ex) {
             log.warn("Error while closing Redis client", ex);
         }
