@@ -8,7 +8,7 @@ import yaml
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
-
+# TODO This is deprecated, pydantic-settings now has a Yaml source
 class YamlConfigSettingsSource(PydanticBaseSettingsSource):
     """
     Taken from https://docs.pydantic.dev/latest/usage/pydantic_settings/#adding-sources

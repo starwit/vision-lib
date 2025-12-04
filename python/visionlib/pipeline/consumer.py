@@ -2,13 +2,13 @@ import logging
 from typing import Generator, List, Tuple
 
 import pybase64
-import redis
+import valkey
 
 logger = logging.getLogger(__name__)
 
-class RedisConsumer:
+class ValkeyConsumer:
     def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode=True, block=2000, start_at_head: bool = False) -> None:
-        self._redis_client = None
+        self._valkey_client = None
         self._host = host
         self._port = port
         self._b64_decode = b64_decode
@@ -19,14 +19,14 @@ class RedisConsumer:
         self._stream_pointers = {key: init_stream_pointer for key in stream_keys}
 
     def __enter__(self):
-        self._redis_client = redis.Redis(self._host, self._port)
+        self._valkey_client = valkey.Valkey(self._host, self._port)
         return self
 
     def __call__(self) -> Generator[Tuple[str, bytes], None, None]:
         data_field_name = b'proto_data_b64' if self._b64_decode else b'proto_data'
 
         while True:    
-            result = self._redis_client.xread(
+            result = self._valkey_client.xread(
                 count=1,
                 block=self._block,
                 streams=self._stream_pointers
@@ -58,8 +58,9 @@ class RedisConsumer:
         
     def __exit__(self, _, __, ___):
         try:
-            self._redis_client.close()
+            self._valkey_client.close()
         except Exception as e:
-            logger.warn('Error while closing redis client', exc_info=e)
+            logger.warning('Error while closing valkey client', exc_info=e)
         
         return False
+    
