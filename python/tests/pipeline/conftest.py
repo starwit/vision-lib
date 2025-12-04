@@ -2,13 +2,14 @@ import logging
 
 import pytest
 import valkey
-from testcontainers.redis import RedisContainer
+
+from testcontainers.core.container import DockerContainer
 
 logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope='module')
 def valkey_container():
-    with RedisContainer(image='valkey/valkey:9-alpine') as container:
+    with DockerContainer(image='valkey/valkey:9-alpine').with_exposed_ports(6379) as container:
         yield container
 
 @pytest.fixture(scope='module')
