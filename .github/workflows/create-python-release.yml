@@ -1,4 +1,4 @@
-name: Create Release
+name: Create Python Release
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   create-release:
-    name: create new release
+    name: create new python release
     runs-on: [self-hosted, linux, X64]
     steps:
       - name: Check out repository
