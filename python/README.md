@@ -8,6 +8,9 @@ The solution to this is to make sure that `DOCKER_HOST` points at the correct do
 `export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock`
 
 ## Changelog
+### 1.0.1
+- Restrict pyturbojpeg to 1.x (2.x requires libjpeg-turbo 3.x, which is not avaiable on Ubuntu 24.04 LTS)
+
 ### 1.0.0
 - Migrate from redis-py to valkey-py
   - Use `valkey-py>=6.1.1`
