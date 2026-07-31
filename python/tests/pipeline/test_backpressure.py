@@ -70,41 +70,6 @@ def test_lag_gauge_reflects_pending(valkey_container, valkey_client):
         assert _wait_until(lambda: _lag_value() == 3)
 
 
-def test_round_robin_two_backpressure_consumers(valkey_container, valkey_client):
-    host, port = _host_port(valkey_container)
-
-    with ValkeyPublisher(host=host, port=port, b64_encode=False, stream_maxlen=100) as publish:
-        for i in range(10):
-            publish(STREAM, f'm{i}'.encode())
-
-    first_consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], b64_decode=False,
-                                    block=200, enable_backpressure=True)
-    second_consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], b64_decode=False,
-                                     block=200, enable_backpressure=True)
-    first_consumer.__enter__()
-    second_consumer.__enter__()
-    try:
-        first_messages, second_messages = first_consumer(), second_consumer()
-        received_first, received_second = [], []
-        for _ in range(30):
-            if len(received_first) + len(received_second) >= 10:
-                break
-            _, first_payload = next(first_messages)
-            if first_payload is not None:
-                received_first.append(first_payload)
-            _, second_payload = next(second_messages)
-            if second_payload is not None:
-                received_second.append(second_payload)
-
-        expected = {f'm{i}'.encode() for i in range(10)}
-        assert set(received_first).isdisjoint(received_second)   # round-robin: no message delivered twice
-        assert set(received_first) | set(received_second) == expected   # together they got everything
-        assert received_first and received_second                # both actually participated
-    finally:
-        first_consumer.__exit__(None, None, None)
-        second_consumer.__exit__(None, None, None)
-
-
 def test_dead_consumer_cleanup(valkey_container, valkey_client):
     host, port = _host_port(valkey_container)
 

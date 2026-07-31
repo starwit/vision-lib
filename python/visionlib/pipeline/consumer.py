@@ -50,10 +50,13 @@ class _PlainReader:
 class _GroupReader:
     '''Reads with XREADGROUP (NOACK) as part of the shared consumer group.
 
-    This gives round-robin distribution across consumers and lets the publisher sense the group's lag
-    (that is what "participating in backpressure" means). NOACK: entries are delivered but never
+    Attaching to the group is what lets the publisher sense how far behind this consumer is (its lag),
+    which is what "participating in backpressure" means. NOACK: entries are delivered but never
     tracked in a pending list, so the group's read position advances on delivery and there is nothing
     to acknowledge. A message in flight when this consumer crashes is not redelivered.
+
+    Note: run a single consumer per group for now. A group can technically distribute entries across
+    several consumers, but that reorders the stream, so it is not a supported mode yet.
     '''
 
     def __init__(self, stream_keys: List[str], block: int, start_at_head: bool,
@@ -102,7 +105,7 @@ class ValkeyConsumer:
         self._b64_decode = b64_decode
 
         # The read behavior is chosen once here. When backpressure is enabled the consumer attaches to
-        # the shared consumer group (round-robin + lag tracking); otherwise it does plain fan-out reads.
+        # the shared consumer group (for lag tracking); otherwise it does plain fan-out reads.
         self._reader = self._build_reader(enable_backpressure, list(stream_keys), block,
                                           start_at_head, consumer_name)
 

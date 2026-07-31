@@ -26,7 +26,7 @@ pip install "git+https://github.com/starwit/vision-lib.git@1.0.1#subdirectory=py
 
 By default the publisher is **fire-and-forget**: if a consumer can't keep up, older messages are trimmed away (`stream_maxlen` bounds memory usage). This is the right trade-off for real-time video.
 
-For batch/replay use cases where **no message may be dropped**, set `enable_backpressure=True` on *both* ends. The publisher then slows down to keep the consumer group's lag below a threshold, and consumers attach to a shared group (round-robin distribution):
+For batch/replay use cases where **no message may be dropped**, set `enable_backpressure=True` on *both* ends. The publisher then slows down to keep the consumer group's lag below a threshold, and the consumer attaches to a shared group so its lag can be tracked:
 
 ```python
 with ValkeyPublisher(host, port, stream_maxlen=1000, enable_backpressure=True) as publish:
@@ -36,6 +36,7 @@ consumer = ValkeyConsumer(host, port, ['mystream'], enable_backpressure=True)
 ```
 
 Notes:
+- Use a single (baskpressure-enabled) consumer per stream for now. A consumer group can technically spread messages across several consumers, but that reorders the stream, so it is not a supported mode yet.
 - Opt-in and off by default; the wire protocol is unchanged, so new and old publishers/consumers still interoperate (just without the new behavior).
 - The publisher exports the monitored lag as a Prometheus gauge (`visionlib_stream_consumer_group_lag`).
 - If no consumer stays alive, the publisher *fails open* after `fail_open_timeout` seconds (resuming, and dropping again) rather than blocking forever.
