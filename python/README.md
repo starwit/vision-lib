@@ -36,7 +36,7 @@ consumer = ValkeyConsumer(host, port, ['mystream'], enable_backpressure=True)
 ```
 
 Notes:
-- Use a single (baskpressure-enabled) consumer per stream for now. A consumer group can technically spread messages across several consumers, but that reorders the stream, so it is not a supported mode yet.
+- Use a single (backpressure-enabled) consumer per stream for now. A consumer group can technically spread messages across several consumers, but that reorders the stream, so it is not a supported mode yet.
 - Opt-in and off by default; the wire protocol is unchanged, so new and old publishers/consumers still interoperate (just without the new behavior).
 - The publisher exports the monitored lag as a Prometheus gauge (`visionlib_stream_consumer_group_lag`).
 - If no consumer stays alive, the publisher *fails open* after `fail_open_timeout` seconds (resuming, and dropping again) rather than blocking forever.
