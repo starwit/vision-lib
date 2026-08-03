@@ -22,6 +22,25 @@ pip install "git+https://github.com/starwit/vision-lib.git@1.0.1#subdirectory=py
   - [`settings`](visionlib/pipeline/settings.py) – YAML config source and log-level enum for `pydantic-settings`.
 - **[`visionlib.saedump`](visionlib/saedump.py)** – read `.saedump` recordings (see the [format specification](../doc/saedump-format.md)).
 
+### Backpressure (optional)
+
+By default the publisher is **fire-and-forget**: if a consumer can't keep up, older messages are trimmed away (`stream_maxlen` bounds memory usage). This is the right trade-off for real-time video.
+
+For batch/replay use cases where **no message may be dropped**, set `enable_backpressure=True` on *both* ends. The publisher then slows down to keep the consumer group's lag below a threshold, and the consumer attaches to a shared group so its lag can be tracked:
+
+```python
+with ValkeyPublisher(host, port, stream_maxlen=1000, enable_backpressure=True) as publish:
+    publish('mystream', proto_bytes)   # blocks while the consumer group is too far behind
+
+consumer = ValkeyConsumer(host, port, ['mystream'], enable_backpressure=True)
+```
+
+Notes:
+- Use a single (backpressure-enabled) consumer per stream for now. A consumer group can technically spread messages across several consumers, but that reorders the stream, so it is not a supported mode yet.
+- Opt-in and off by default; the wire protocol is unchanged, so new and old publishers/consumers still interoperate (just without the new behavior).
+- The publisher exports the monitored lag as a Prometheus gauge (`visionlib_stream_consumer_group_lag`).
+- If no consumer stays alive, the publisher *fails open* after `fail_open_timeout` seconds (resuming, and dropping again) rather than blocking forever.
+
 ## Development
 
 ### Running tests
@@ -37,6 +56,9 @@ export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 ```
 
 ## Changelog
+
+### 1.1.0
+- Add optional consumer-lag backpressure (`enable_backpressure=True` on publisher and consumer); off by default and wire-compatible. Publisher exports lag via the `visionlib_stream_consumer_group_lag` Prometheus metric.
 
 ### 1.0.1
 - Restrict pyturbojpeg to 1.x (2.x requires libjpeg-turbo 3.x, which is not available on Ubuntu 24.04 LTS)
