@@ -41,6 +41,8 @@ Notes:
 - The publisher exports the monitored lag as a Prometheus gauge (`visionlib_stream_consumer_group_lag`).
 - If no consumer stays alive, the publisher *fails open* after `fail_open_timeout` seconds (resuming, and dropping again) rather than blocking forever.
 
+See [how backpressure works](../doc/backpressure.md) for the conceptual design.
+
 ## Development
 
 ### Running tests
