@@ -1,22 +1,25 @@
-import re
 from typing import Generator, List, TextIO
 
 from pydantic import BaseModel
 
 MESSAGE_SEPARATOR = ';'
 
-def message_splitter(file: TextIO) -> Generator[str, None, None]:
-    buffer = ''
-    while True:
-        chunk = file.read(4096)
-        if len(chunk) == 0:
-            break
-        buffer += chunk
-        prev_end = 0
-        for match in re.finditer(rf'{MESSAGE_SEPARATOR}', buffer):
-            yield buffer[prev_end:match.start()]
-            prev_end = match.end()
-        buffer = buffer[prev_end:]
+def message_splitter(file: TextIO, chunk_size: int = 1 << 20) -> Generator[str, None, None]:
+    '''Yield the messages of a saedump file, reading from the file's current position.
+
+    Separators are only searched in newly read chunks, so the runtime is linear in the file size.
+    Data after the last separator is not yielded.
+    '''
+    pending: List[str] = []
+    while chunk := file.read(chunk_size):
+        start = 0
+        while (idx := chunk.find(MESSAGE_SEPARATOR, start)) != -1:
+            pending.append(chunk[start:idx])
+            yield ''.join(pending)
+            pending = []
+            start = idx + len(MESSAGE_SEPARATOR)
+        if start < len(chunk):
+            pending.append(chunk[start:])
 
 
 class EventMeta(BaseModel):
