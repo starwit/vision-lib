@@ -1,7 +1,27 @@
 import numpy as np
 from turbojpeg import TurboJPEG
 
-jpeg = TurboJPEG()
+# Created lazily, so that libturbojpeg (a system library) is only required if JPEG frames are actually decoded
+_jpeg = None
+
+def get_jpeg() -> TurboJPEG:
+    '''
+        Returns a shared TurboJPEG instance. Raises a RuntimeError if libturbojpeg is not installed.
+    '''
+    global _jpeg
+    if _jpeg is None:
+        try:
+            _jpeg = TurboJPEG()
+        except RuntimeError as e:
+            raise RuntimeError('JPEG frame decoding requires the libturbojpeg system library, which could not be found '
+                               '(e.g. on Debian/Ubuntu: sudo apt install libturbojpeg)') from e
+    return _jpeg
+
+def __getattr__(name):
+    # Keeps the former module attribute `jpeg` working (now created on first access)
+    if name == 'jpeg':
+        return get_jpeg()
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 def is_valid_video_frame(proto):
     try:
@@ -30,7 +50,7 @@ def get_raw_frame_data(proto):
         return None
     
     if is_jpeg_frame(proto):
-        return jpeg.decode(proto.frame_data_jpeg)
+        return get_jpeg().decode(proto.frame_data_jpeg)
     else:
         image_dims = (proto.shape.height, proto.shape.width, proto.shape.channels)
         np_image = np.frombuffer(proto.frame_data, dtype=np.uint8).reshape(image_dims)
