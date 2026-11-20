@@ -59,6 +59,9 @@ export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 
 ## Changelog
 
+### 1.1.1
+- Fix slow reading of saedump files with large messages (e.g. with frames): `message_splitter()` now runs in linear instead of quadratic time and takes an optional `chunk_size` argument (default 1 MiB); output is unchanged
+
 ### 1.1.0
 - Add optional consumer-lag backpressure (`enable_backpressure=True` on publisher and consumer); off by default and wire-compatible. Publisher exports lag via the `visionlib_stream_consumer_group_lag` Prometheus metric.
 

@@ -23,7 +23,7 @@ def is_jpeg_frame(proto):
 
 def get_raw_frame_data(proto):
     '''
-        Gets image data as NDArray from a VideoFrame proto. JPEG frames are handled (i.e. decompressed) transparently.\ 
+        Gets image data as NDArray from a VideoFrame proto. JPEG frames are handled (i.e. decompressed) transparently.
         If necessary fields are missing returns None.
     '''
     if not is_valid_video_frame(proto):
