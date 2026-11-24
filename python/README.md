@@ -12,12 +12,20 @@ poetry add git+https://github.com/starwit/vision-lib.git@1.0.1#subdirectory=pyth
 pip install "git+https://github.com/starwit/vision-lib.git@1.0.1#subdirectory=python"
 ```
 
+To decode video frames (`get_raw_frame_data()`), install the `frames` extra, which adds `numpy` and `pyturbojpeg`:
+
+```bash
+poetry add "git+https://github.com/starwit/vision-lib.git@2.0.0#subdirectory=python[frames]"
+# or
+pip install "visionlib[frames] @ git+https://github.com/starwit/vision-lib.git@2.0.0#subdirectory=python"
+```
+
 ## What's available
 
 - **[`visionlib.pipeline`](visionlib/pipeline/__init__.py)** – move `SaeMessage` protobufs through Valkey streams:
   - [`ValkeyConsumer`](visionlib/pipeline/consumer.py) – read messages from one or more streams.
   - [`ValkeyPublisher`](visionlib/pipeline/publisher.py) – write messages to a stream; `ValkeyPipelinePublisher` batches writes into one round-trip.
-  - [`get_raw_frame_data`](visionlib/pipeline/tools.py) – extract a video frame as a numpy array (JPEG decoded transparently).
+  - [`get_raw_frame_data`](visionlib/pipeline/tools.py) – extract a video frame as a numpy array (JPEG decoded transparently). Requires the `frames` extra (see [Installation](#installation)).
   - [`formats`](visionlib/pipeline/formats.py) – validate `SaeMessage` / `PositionMessage` objects.
   - [`settings`](visionlib/pipeline/settings.py) – YAML config source and log-level enum for `pydantic-settings`.
 - **[`visionlib.saedump`](visionlib/saedump.py)** – read `.saedump` recordings (see the [format specification](../doc/saedump-format.md)).
@@ -58,6 +66,9 @@ export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 ```
 
 ## Changelog
+
+### 2.0.0
+- **Breaking:** `numpy` and `pyturbojpeg` are no longer installed by default, but via the optional `frames` extra. Stages that only handle messages (and never decode frames) get smaller images. Code calling `get_raw_frame_data()` or `get_jpeg()` must now install `visionlib[frames]`; without it, an `ImportError` with installation hints is raised on first use. Importing `visionlib.pipeline` works without the extra.
 
 ### 1.4.0
 - A publisher without backpressure no longer creates the default consumer group on its streams; only `enable_backpressure=True` publishers do. A backpressure consumer attaching to such a stream now creates the group itself, so its `start_at_head` is honoured (previously it was ignored and the consumer received the retained backlog first).

@@ -1,15 +1,34 @@
-import numpy as np
-from turbojpeg import TurboJPEG
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from turbojpeg import TurboJPEG
+
+# numpy and pyturbojpeg are optional (extra `frames`) and imported lazily, so that stages which never decode
+# frames do not need them installed
+_MISSING_EXTRA_HINT = ('Decoding video frames requires the optional dependencies numpy and pyturbojpeg. '
+                       'Install them with the `frames` extra, e.g. pip install "visionlib[frames] @ git+..."')
+
+def _import_numpy():
+    try:
+        import numpy
+    except ImportError as e:
+        raise ImportError(_MISSING_EXTRA_HINT) from e
+    return numpy
 
 # Created lazily, so that libturbojpeg (a system library) is only required if JPEG frames are actually decoded
 _jpeg = None
 
-def get_jpeg() -> TurboJPEG:
+def get_jpeg() -> 'TurboJPEG':
     '''
-        Returns a shared TurboJPEG instance. Raises a RuntimeError if libturbojpeg is not installed.
+        Returns a shared TurboJPEG instance. Raises an ImportError if the `frames` extra is not installed
+        and a RuntimeError if libturbojpeg is not installed.
     '''
     global _jpeg
     if _jpeg is None:
+        try:
+            from turbojpeg import TurboJPEG
+        except ImportError as e:
+            raise ImportError(_MISSING_EXTRA_HINT) from e
         try:
             _jpeg = TurboJPEG()
         except RuntimeError as e:
@@ -53,5 +72,6 @@ def get_raw_frame_data(proto):
         return get_jpeg().decode(proto.frame_data_jpeg)
     else:
         image_dims = (proto.shape.height, proto.shape.width, proto.shape.channels)
+        np = _import_numpy()
         np_image = np.frombuffer(proto.frame_data, dtype=np.uint8).reshape(image_dims)
         return np_image
