@@ -15,8 +15,8 @@ from prometheus_client import Gauge
 
 logger = logging.getLogger(__name__)
 
-# Name of the consumer group that a publisher creates on every stream it owns. This is a
-# hardcoded convention so that backpressure-aware consumers can attach without extra configuration.
+# Name of the consumer group that a backpressure-enabled publisher creates on every stream it owns.
+# This is a hardcoded convention so that backpressure-aware consumers can attach without extra configuration.
 DEFAULT_CONSUMER_GROUP = 'visionlib-default-group'
 
 # Undelivered entries for the default consumer group, i.e. how far the group is behind the publisher.
@@ -183,35 +183,18 @@ class GroupMonitor(threading.Thread):
         self._stop_event.set()
 
 
-class GroupCoordinator:
-    '''Owns the default consumer group on the streams a publisher writes to.
+class NoopCoordinator:
+    '''Coordinator for a publisher that does not honour backpressure: every hook is a no-op.
 
-    This passive base does the one thing that happens regardless of backpressure: it creates the
-    group on each stream the first time it is published to. Throttling is a no-op here, so a
-    publisher that does not honour backpressure uses this directly.
+    Such a publisher leaves the stream alone (no consumer group, no monitor, no throttling), so a
+    backpressure consumer attaching later creates the group itself and its ``start_at_head`` applies.
     '''
-
-    def __init__(self, admin_client: valkey.Valkey, group: str = DEFAULT_CONSUMER_GROUP) -> None:
-        self._admin_client = admin_client
-        self._group = group
-        self._known_streams = set()
-        self._streams_lock = threading.Lock()
 
     def start(self) -> None:
         pass
 
     def ensure_stream(self, stream_key: str) -> None:
-        '''Create the group on a stream the first time we publish to it (idempotent, cached).'''
-        with self._streams_lock:
-            if stream_key in self._known_streams:
-                return
-        ensure_group(self._admin_client, stream_key, self._group, id='$')
-        with self._streams_lock:
-            self._known_streams.add(stream_key)
-
-    def registered_streams(self) -> List[str]:
-        with self._streams_lock:
-            return list(self._known_streams)
+        pass
 
     def await_capacity(self) -> None:
         pass
@@ -220,17 +203,22 @@ class GroupCoordinator:
         pass
 
 
-class BackpressureCoordinator(GroupCoordinator):
-    '''A coordinator that additionally throttles publishing to keep the group's lag in check.
+class BackpressureCoordinator(NoopCoordinator):
+    '''Owns the default consumer group on the streams a publisher writes to and throttles publishing
+    to keep the group's lag in check.
 
-    It runs a GroupMonitor out of band; the monitor flips a threading.Event that await_capacity()
-    blocks on, so the publishing thread slows down whenever the consumer group falls behind.
+    The group is created on each stream the first time it is published to. A GroupMonitor runs out
+    of band; it flips a threading.Event that await_capacity() blocks on, so the publishing thread
+    slows down whenever the consumer group falls behind.
     '''
 
     def __init__(self, admin_client: valkey.Valkey, threshold: int, monitor_interval: float,
                  consumer_idle_timeout_ms: int, fail_open_timeout: Optional[float],
                  group: str = DEFAULT_CONSUMER_GROUP) -> None:
-        super().__init__(admin_client, group)
+        self._admin_client = admin_client
+        self._group = group
+        self._known_streams = set()
+        self._streams_lock = threading.Lock()
         self._monitor_interval = monitor_interval
         # Set == the publisher may write. Initially open; the monitor clears it when lag is too high.
         self._ok_to_publish = threading.Event()
@@ -245,6 +233,19 @@ class BackpressureCoordinator(GroupCoordinator):
             fail_open_timeout=fail_open_timeout,
             ok_event=self._ok_to_publish,
         )
+
+    def ensure_stream(self, stream_key: str) -> None:
+        '''Create the group on a stream the first time we publish to it (idempotent, cached).'''
+        with self._streams_lock:
+            if stream_key in self._known_streams:
+                return
+        ensure_group(self._admin_client, stream_key, self._group, id='$')
+        with self._streams_lock:
+            self._known_streams.add(stream_key)
+
+    def registered_streams(self) -> List[str]:
+        with self._streams_lock:
+            return list(self._known_streams)
 
     def start(self) -> None:
         self._monitor.start()

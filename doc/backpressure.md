@@ -28,8 +28,9 @@ A consumer group is a server-side bookmark on a stream. Valkey tracks, per group
 have been added to the stream versus how many the group has read; the difference is the group's
 **lag** — a pure count of undelivered messages, independent of timestamps or message contents.
 
-- The publisher *owns* the stream, so it creates a default consumer group on every stream it writes
-  to (a hardcoded group name, created the first time a stream is published to).
+- A backpressure-enabled publisher *owns* the stream, so it creates a default consumer group on every
+  stream it writes to (a hardcoded group name, created the first time a stream is published to). A
+  publisher without backpressure creates no group; a backpressure consumer then creates it itself.
 - A backpressure-aware consumer *attaches* to that same group and reads through it. Attaching is the
   whole point: it makes the consumer's progress visible to the publisher as the group's lag.
 

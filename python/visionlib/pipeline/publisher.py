@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 import pybase64
 import valkey
 
-from ._backpressure import BackpressureCoordinator, GroupCoordinator
+from ._backpressure import BackpressureCoordinator, NoopCoordinator
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ class ValkeyPublisher:
         self._stream_maxlen = stream_maxlen
         self._b64_encode = b64_encode
 
-        # Backpressure configuration. When disabled, the publish path stays fire-and-forget; the
-        # only added behavior is that the default consumer group is created on each owned stream.
+        # Backpressure configuration. When disabled, the publish path stays plain fire-and-forget XADD
+        # (no consumer group is created, no monitor runs).
         self._enable_backpressure = enable_backpressure
         self._backpressure_threshold = (backpressure_threshold if backpressure_threshold is not None
                                         else max(1, stream_maxlen // 2))
@@ -45,7 +45,7 @@ class ValkeyPublisher:
                 consumer_idle_timeout_ms=self._consumer_idle_timeout_ms,
                 fail_open_timeout=self._fail_open_timeout,
             )
-        return GroupCoordinator(self._admin_client)
+        return NoopCoordinator()
 
     def __enter__(self):
         self._valkey_client = valkey.Valkey(self._host, self._port, **self._valkey_args)

@@ -73,8 +73,9 @@ class _GroupReader:
         self._streams = {key: '>' for key in stream_keys}
 
     def setup(self, client: valkey.Valkey) -> None:
-        # The publisher normally owns and creates the group, but we create it here too so that a
-        # backpressure consumer also works against an old publisher that never created one.
+        # A backpressure-enabled publisher owns and creates the group, but we create it here too so
+        # that a backpressure consumer also works against a publisher without backpressure (or an old
+        # one), which never creates a group.
         # start_at_head only takes effect when *this* consumer creates the group; against an existing
         # group the read position is server-side and shared.
         group_id = '0' if self._start_at_head else '$'

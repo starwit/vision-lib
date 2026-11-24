@@ -59,6 +59,9 @@ export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 
 ## Changelog
 
+### 1.4.0
+- A publisher without backpressure no longer creates the default consumer group on its streams; only `enable_backpressure=True` publishers do. A backpressure consumer attaching to such a stream now creates the group itself, so its `start_at_head` is honoured (previously it was ignored and the consumer received the retained backlog first).
+
 ### 1.3.0
 - `ValkeyConsumer` detects base64 transparently per message (`proto_data_b64` is decoded, `proto_data` is passed through), so consumers work with publishers in either mode, even mixed on one stream. The `b64_decode` argument is deprecated and ignored (emits a `DeprecationWarning` if passed); existing code keeps working unchanged.
 

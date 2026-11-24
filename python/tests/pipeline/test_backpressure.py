@@ -5,10 +5,10 @@ from typing import Callable
 
 from prometheus_client import REGISTRY
 
-from visionlib.pipeline import ValkeyConsumer, ValkeyPublisher
+from visionlib.pipeline import ValkeyConsumer, ValkeyPipelinePublisher, ValkeyPublisher
 # These are internal implementation details, imported directly (not re-exported by the package).
 from visionlib.pipeline._backpressure import (DEFAULT_CONSUMER_GROUP, STREAM_LAG,
-                                              BackpressureCoordinator, GroupCoordinator, GroupMonitor)
+                                              BackpressureCoordinator, GroupMonitor, NoopCoordinator)
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,9 @@ def _lag_value(stream: str = STREAM):
 
 # --- Group / metric / lifecycle -------------------------------------------------------------
 
-def test_publisher_creates_group(valkey_container, valkey_client):
+def test_backpressure_publisher_creates_group(valkey_container, valkey_client):
     host, port = _host_port(valkey_container)
-    with ValkeyPublisher(host=host, port=port, b64_encode=False) as publish:
+    with ValkeyPublisher(host=host, port=port, b64_encode=False, enable_backpressure=True) as publish:
         publish(STREAM, b'hello')
 
     groups = valkey_client.xinfo_groups(STREAM)
@@ -46,10 +46,34 @@ def test_publisher_creates_group(valkey_container, valkey_client):
     assert groups[0]['name'] == GROUP_BYTES
 
 
+def test_backpressure_pipeline_publisher_creates_group(valkey_container, valkey_client):
+    host, port = _host_port(valkey_container)
+    with ValkeyPipelinePublisher(host=host, port=port, b64_encode=False,
+                                 enable_backpressure=True) as publish:
+        publish([(STREAM, b'hello')])
+
+    groups = valkey_client.xinfo_groups(STREAM)
+    assert len(groups) == 1
+    assert groups[0]['name'] == GROUP_BYTES
+
+
+def test_publisher_without_backpressure_creates_no_group(valkey_container, valkey_client):
+    host, port = _host_port(valkey_container)
+    with ValkeyPublisher(host=host, port=port, b64_encode=False) as publish:
+        assert type(publish._coordinator) is NoopCoordinator
+        publish(STREAM, b'hello')
+    with ValkeyPipelinePublisher(host=host, port=port, b64_encode=False) as publish:
+        assert type(publish._coordinator) is NoopCoordinator
+        publish([(STREAM, b'world')])
+
+    assert valkey_client.xlen(STREAM) == 2
+    assert valkey_client.xinfo_groups(STREAM) == []
+
+
 def test_group_creation_is_idempotent(valkey_container, valkey_client):
     host, port = _host_port(valkey_container)
     for payload in (b'a', b'b'):
-        with ValkeyPublisher(host=host, port=port, b64_encode=False) as publish:
+        with ValkeyPublisher(host=host, port=port, b64_encode=False, enable_backpressure=True) as publish:
             publish(STREAM, payload)
 
     groups = valkey_client.xinfo_groups(STREAM)
@@ -188,7 +212,7 @@ def test_pub_off_consumer_on_no_throttle(valkey_container, valkey_client):
 
         with ValkeyPublisher(host=host, port=port, b64_encode=False, stream_maxlen=100) as publish:
             # Backpressure off -> the passive coordinator (no monitor, no throttling).
-            assert type(publish._coordinator) is GroupCoordinator
+            assert type(publish._coordinator) is NoopCoordinator
             for i in range(5):
                 publish(STREAM, f'm{i}'.encode())
 
@@ -205,14 +229,64 @@ def test_pub_off_consumer_on_no_throttle(valkey_container, valkey_client):
         consumer.__exit__(None, None, None)
 
 
+def _drain(messages, max_polls: int = 5):
+    '''Collect payloads until the consumer yields an empty poll (or max_polls is reached).'''
+    received = []
+    for _ in range(max_polls):
+        _, payload = next(messages)
+        if payload is None:
+            break
+        received.append(payload)
+    return received
+
+
+def test_pub_off_consumer_on_start_at_head_honoured(valkey_container, valkey_client):
+    '''(publisher off, consumer on): since the publisher creates no group, the consumer creates it
+    and its start_at_head decides whether pre-existing entries are delivered.'''
+    host, port = _host_port(valkey_container)
+
+    with ValkeyPublisher(host=host, port=port, b64_encode=False, stream_maxlen=100) as publish:
+        for i in range(3):
+            publish(STREAM, f'old{i}'.encode())
+
+    consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], block=200,
+                              enable_backpressure=True, start_at_head=True)
+    consumer.__enter__()
+    try:
+        assert _drain(consumer()) == [f'old{i}'.encode() for i in range(3)]
+    finally:
+        consumer.__exit__(None, None, None)
+
+
+def test_pub_off_consumer_on_tail_skips_backlog(valkey_container, valkey_client):
+    '''(publisher off, consumer on, start_at_head=False): entries published before the consumer
+    attached are not replayed; only new entries are delivered.'''
+    host, port = _host_port(valkey_container)
+
+    with ValkeyPublisher(host=host, port=port, b64_encode=False, stream_maxlen=100) as publish:
+        for i in range(3):
+            publish(STREAM, f'old{i}'.encode())
+
+        consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], block=200,
+                                  enable_backpressure=True, start_at_head=False)
+        consumer.__enter__()
+        try:
+            publish(STREAM, b'new')
+            assert _drain(consumer()) == [b'new']
+        finally:
+            consumer.__exit__(None, None, None)
+
+
 def test_both_off_is_legacy_xread(valkey_container, valkey_client):
     '''(publisher off, consumer off): default path is byte-for-byte the old wire format, readable by
-    a plain XREAD consumer.'''
+    a plain XREAD consumer, and leaves no consumer group behind.'''
     host, port = _host_port(valkey_container)
 
     with ValkeyPublisher(host=host, port=port, b64_encode=False) as publish:
         publish(STREAM, b'hello')
         publish(STREAM, b'world')
+
+    assert valkey_client.xinfo_groups(STREAM) == []
 
     stream = valkey_client.xread({STREAM: '0'}, count=5)
     assert stream[0][1][0][1][b'proto_data'] == b'hello'
