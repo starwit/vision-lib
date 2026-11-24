@@ -2,7 +2,8 @@ import logging
 import os
 import socket
 import uuid
-from typing import Generator, List, Optional, Tuple
+import warnings
+from typing import Dict, Generator, List, Optional, Tuple
 
 import pybase64
 import valkey
@@ -10,6 +11,9 @@ import valkey
 from ._backpressure import DEFAULT_CONSUMER_GROUP, ensure_group
 
 logger = logging.getLogger(__name__)
+
+_FIELD_B64 = b'proto_data_b64'
+_FIELD_RAW = b'proto_data'
 
 
 class _PlainReader:
@@ -23,7 +27,7 @@ class _PlainReader:
     def setup(self, client: valkey.Valkey) -> None:
         pass
 
-    def messages(self, client: valkey.Valkey, data_field_name: bytes) -> Generator[Tuple, None, None]:
+    def messages(self, client: valkey.Valkey) -> Generator[Tuple, None, None]:
         while True:
             result = client.xread(count=1, block=self._block, streams=self._stream_pointers)
 
@@ -32,10 +36,10 @@ class _PlainReader:
                 continue
 
             for item in result:
-                proto_data = item[1][0][1][data_field_name]
+                fields = item[1][0][1]
                 stream_key = item[0].decode('utf-8')
                 self._update_stream_pointers(stream_key, retrieved_id=item[1][0][0].decode('utf-8'))
-                yield stream_key, proto_data
+                yield stream_key, fields
 
     def _update_stream_pointers(self, stream_key: str, retrieved_id: str) -> None:
         self._stream_pointers[stream_key] = retrieved_id
@@ -77,7 +81,7 @@ class _GroupReader:
         for stream_key in self._stream_keys:
             ensure_group(client, stream_key, self._group, id=group_id)
 
-    def messages(self, client: valkey.Valkey, data_field_name: bytes) -> Generator[Tuple, None, None]:
+    def messages(self, client: valkey.Valkey) -> Generator[Tuple, None, None]:
         while True:
             result = client.xreadgroup(self._group, self._consumer_name, count=1, block=self._block,
                                        streams=self._streams, noack=True)
@@ -90,19 +94,38 @@ class _GroupReader:
                 entries = item[1]
                 if not entries:
                     continue
-                proto_data = entries[0][1][data_field_name]
+                fields = entries[0][1]
                 stream_key = item[0].decode('utf-8')
-                yield stream_key, proto_data
+                yield stream_key, fields
+
+
+def _extract_payload(stream_key: str, fields: Dict[bytes, bytes]) -> Optional[bytes]:
+    '''Returns the raw payload of a stream entry, transparently decoding base64 if the publisher encoded it.
+
+    The encoding is detected from the field name (see ValkeyPublisher). Returns None for entries that
+    carry neither field.
+    '''
+    if _FIELD_B64 in fields:
+        return pybase64.b64decode(fields[_FIELD_B64], validate=True)
+    if _FIELD_RAW in fields:
+        return fields[_FIELD_RAW]
+    logger.warning(f'Skipping entry on stream {stream_key!r} without payload field (fields: {list(fields.keys())})')
+    return None
 
 
 class ValkeyConsumer:
-    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode: bool = True,
+    def __init__(self, host: str, port: int, stream_keys: List[str], b64_decode: Optional[bool] = None,
                  block: int = 2000, start_at_head: bool = False, enable_backpressure: bool = False,
                  consumer_name: Optional[str] = None) -> None:
         self._valkey_client = None
         self._host = host
         self._port = port
-        self._b64_decode = b64_decode
+
+        # b64_decode is kept only for backwards compatibility: the payload encoding is now detected per
+        # message from the field name, so the flag has no effect.
+        if b64_decode is not None:
+            warnings.warn('ValkeyConsumer: b64_decode is deprecated and ignored; '
+                          'base64 encoding is detected automatically', DeprecationWarning, stacklevel=2)
 
         # The read behavior is chosen once here. When backpressure is enabled the consumer attaches to
         # the shared consumer group (for lag tracking); otherwise it does plain fan-out reads.
@@ -122,14 +145,12 @@ class ValkeyConsumer:
         return self
 
     def __call__(self) -> Generator[Tuple[str, bytes], None, None]:
-        data_field_name = b'proto_data_b64' if self._b64_decode else b'proto_data'
-
-        for stream_key, proto_data in self._reader.messages(self._valkey_client, data_field_name):
+        for stream_key, fields in self._reader.messages(self._valkey_client):
             if stream_key is None:
                 yield None, None
-            elif self._b64_decode:
-                yield stream_key, pybase64.b64decode(proto_data, validate=True)
-            else:
+                continue
+            proto_data = _extract_payload(stream_key, fields)
+            if proto_data is not None:
                 yield stream_key, proto_data
 
     def __exit__(self, _, __, ___):

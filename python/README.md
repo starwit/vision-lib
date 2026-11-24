@@ -59,6 +59,9 @@ export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 
 ## Changelog
 
+### 1.3.0
+- `ValkeyConsumer` detects base64 transparently per message (`proto_data_b64` is decoded, `proto_data` is passed through), so consumers work with publishers in either mode, even mixed on one stream. The `b64_decode` argument is deprecated and ignored (emits a `DeprecationWarning` if passed); existing code keeps working unchanged.
+
 ### 1.2.0
 - libturbojpeg is only loaded when a JPEG frame is first decoded (`get_raw_frame_data()`), not on import of `visionlib.pipeline`. Code that never decodes JPEG frames no longer needs it installed. If it is missing, a `RuntimeError` with installation hints is raised.
 - Add `visionlib.pipeline.tools.get_jpeg()` (returns the shared `TurboJPEG` instance)

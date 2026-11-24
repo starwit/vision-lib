@@ -76,7 +76,7 @@ def test_dead_consumer_cleanup(valkey_container, valkey_client):
     with ValkeyPublisher(host=host, port=port, b64_encode=False, stream_maxlen=100,
                          enable_backpressure=True, monitor_interval=0.05,
                          consumer_idle_timeout_ms=300, fail_open_timeout=None) as publish:
-        consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], b64_decode=False,
+        consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM],
                                   block=200, enable_backpressure=True, consumer_name='doomed')
         consumer.__enter__()
         try:
@@ -106,7 +106,7 @@ def test_both_on_throttles_and_delivers_all(valkey_container, valkey_client):
     stop = threading.Event()
 
     def consume():
-        consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], b64_decode=False,
+        consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM],
                                   block=200, enable_backpressure=True)
         consumer.__enter__()
         try:
@@ -180,7 +180,7 @@ def test_pub_off_consumer_on_no_throttle(valkey_container, valkey_client):
     blocking), but a backpressure consumer still attaches to the group and receives everything.'''
     host, port = _host_port(valkey_container)
 
-    consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM], b64_decode=False,
+    consumer = ValkeyConsumer(host=host, port=port, stream_keys=[STREAM],
                               block=200, enable_backpressure=True)
     consumer.__enter__()
     try:
